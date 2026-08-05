@@ -296,7 +296,8 @@
   </div>
   <div id="historial-list"></div>
   <div class="btn-row" style="margin-top:2rem">
-    <button class="btn btn-primary" onclick="closeHistorial()">← Volver al menú</button>
+    <button class="btn btn-primary" id="practice-historial-btn" onclick="openBlockPicker('historial')">Practicar estas preguntas</button>
+    <button class="btn btn-ghost" onclick="closeHistorial()">← Volver al menú</button>
   </div>
 </div>
 
@@ -406,7 +407,7 @@ const EXPLANATIONS = {
   149:"Chatter Stream agrega el feed de múltiples grupos, registros y personas en una sola vista centralizada."
 };
 
-let mode = '', questions = [], current = 0, selected = [], userAnswers = [], timerInterval = null, timeLeft = 0, blockStart = 0, reviewBlockSize = 10;
+let mode = '', questions = [], current = 0, selected = [], userAnswers = [], timerInterval = null, timeLeft = 0, blockStart = 0, reviewBlockSize = 10, reviewSource = 'pending';
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
 
@@ -416,6 +417,7 @@ function startMode(m) {
   document.getElementById('quiz-wrapper').style.display = 'block';
   document.getElementById('results').style.display = 'none';
   document.getElementById('question-area').style.display = 'block';
+  document.getElementById('historial-page').style.display = 'none';
 
   if (mode === 'exam') {
     questions = shuffle(QUESTIONS).slice(0, 60);
@@ -426,14 +428,17 @@ function startMode(m) {
     startTimer();
     document.getElementById('timer').style.display = 'block';
   } else if (mode === 'repaso') {
-    const pendingIds = getPendingReviewIds(getProgress());
-    questions = QUESTIONS.filter(q => pendingIds.includes(q.id));
-    document.getElementById('mode-badge').textContent = 'MODO REPASO';
+    const progress = getProgress();
+    const idsToUse = reviewSource === 'historial'
+      ? getRevisionEntries(progress).map(e => e.id)
+      : getPendingReviewIds(progress);
+    questions = QUESTIONS.filter(q => idsToUse.includes(q.id));
+    document.getElementById('mode-badge').textContent = reviewSource === 'historial' ? 'MODO REPASO (HISTORIAL)' : 'MODO REPASO';
     document.getElementById('mode-badge').className = 'mode-badge badge-repaso';
     document.getElementById('timer').style.display = 'none';
     document.getElementById('btn-skip').style.display = 'none';
   } else {
-    questions = [...QUESTIONS];
+    questions = shuffle(QUESTIONS);
     document.getElementById('mode-badge').textContent = 'MODO ESTUDIO';
     document.getElementById('mode-badge').className = 'mode-badge badge-study';
     document.getElementById('timer').style.display = 'none';
@@ -720,9 +725,14 @@ function goMenu() {
   renderMenuCounts();
 }
 
-function openBlockPicker() {
-  const pending = getPendingReviewIds(getProgress());
-  if (pending.length === 0) return;
+function openBlockPicker(source) {
+  source = source || 'pending';
+  const progress = getProgress();
+  const count = source === 'historial'
+    ? getRevisionEntries(progress).length
+    : getPendingReviewIds(progress).length;
+  if (count === 0) return;
+  reviewSource = source;
   document.getElementById('block-picker').classList.add('show');
 }
 
@@ -766,6 +776,7 @@ function showHistorial() {
   document.getElementById('historial-page').style.display = 'block';
   document.getElementById('historial-sub').textContent =
     `${entries.length} pregunta${entries.length === 1 ? '' : 's'} fallada${entries.length === 1 ? '' : 's'} alguna vez`;
+  document.getElementById('practice-historial-btn').style.display = entries.length === 0 ? 'none' : 'inline-block';
 
   const list = document.getElementById('historial-list');
   list.innerHTML = '';
