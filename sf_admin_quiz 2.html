@@ -190,6 +190,9 @@
   .picker-btn { padding:14px; border-radius:10px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:var(--mono); font-size:1.1rem; font-weight:600; cursor:pointer; transition: all 0.15s; }
   .picker-btn:hover { border-color:var(--accent); color:var(--accent); }
   .picker-cancel { margin-top:1rem; background:none; border:none; color:var(--muted); font-size:0.82rem; cursor:pointer; text-decoration:underline; }
+
+  #historial-page { display:none; max-width:780px; margin:0 auto; padding:2.5rem 1.5rem; }
+  .fail-count-badge { font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(239,68,68,0.15); color: #fca5a5; margin-left: 8px; }
 </style>
 </head>
 <body>
@@ -271,6 +274,17 @@
     <div class="btn-row" style="margin-top:2rem">
       <button class="btn btn-primary" onclick="goMenu()">← Volver al menú</button>
     </div>
+  </div>
+</div>
+
+<div id="historial-page">
+  <div class="result-header">
+    <div class="review-title">HISTORIAL DE FALLADAS</div>
+    <div class="result-sub" id="historial-sub"></div>
+  </div>
+  <div id="historial-list"></div>
+  <div class="btn-row" style="margin-top:2rem">
+    <button class="btn btn-primary" onclick="closeHistorial()">← Volver al menú</button>
   </div>
 </div>
 
@@ -700,6 +714,41 @@ function startRepaso(blockSize) {
   closeBlockPicker();
   reviewBlockSize = blockSize;
   startMode('repaso');
+}
+
+function showHistorial() {
+  const progress = getProgress();
+  const entries = getRevisionEntries(progress);
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('historial-page').style.display = 'block';
+  document.getElementById('historial-sub').textContent =
+    `${entries.length} pregunta${entries.length === 1 ? '' : 's'} fallada${entries.length === 1 ? '' : 's'} alguna vez`;
+
+  const list = document.getElementById('historial-list');
+  list.innerHTML = '';
+  if (entries.length === 0) {
+    list.innerHTML = '<p style="color:var(--muted);text-align:center;">Todavía no has fallado ninguna pregunta.</p>';
+    return;
+  }
+  entries.forEach(entry => {
+    const q = QUESTIONS.find(item => item.id === entry.id);
+    if (!q) return;
+    const div = document.createElement('div');
+    div.className = 'review-item rev-incorrect';
+    const correctText = q.answers.map(l => `${l}. ${q.options[l]}`).join(' / ');
+    div.innerHTML = `
+      <div class="review-q">[Q${q.id}] ${q.question} <span class="fail-count-badge">Fallada ${entry.failCount} ${entry.failCount === 1 ? 'vez' : 'veces'}</span></div>
+      <div class="review-answers"><span class="rev-ans rev-correct-ans">✓ ${correctText}</span></div>
+      ${EXPLANATIONS[q.id] ? `<div style="margin-top:8px;font-size:0.78rem;color:var(--muted);line-height:1.5;">${EXPLANATIONS[q.id]}</div>` : ''}
+    `;
+    list.appendChild(div);
+  });
+}
+
+function closeHistorial() {
+  document.getElementById('historial-page').style.display = 'none';
+  document.getElementById('menu').style.display = 'flex';
+  renderMenuCounts();
 }
 
 function renderMenuCounts() {
