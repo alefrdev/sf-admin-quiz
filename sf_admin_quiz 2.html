@@ -55,6 +55,7 @@
   .mode-badge { font-family: var(--mono); font-size: 10px; padding: 3px 10px; border-radius: 4px; text-transform: uppercase; letter-spacing: 1px; }
   .badge-exam { background: rgba(124,58,237,0.2); color: #a78bfa; }
   .badge-study { background: rgba(0,212,255,0.15); color: var(--accent); }
+  .badge-repaso { background: rgba(16,185,129,0.15); color: var(--green); }
   .progress-info { margin-left: auto; font-family: var(--mono); font-size: 0.82rem; color: var(--muted); }
   .progress-info span { color: var(--text); }
   .timer { font-family: var(--mono); font-size: 1rem; font-weight: 600; padding: 4px 12px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); }
@@ -179,6 +180,16 @@
   .fail-tip span { color: var(--accent); }
   .fail-btn { margin-top:0.5rem; padding: 12px 32px; background: var(--amber); color: #0a0e1a; border:none; border-radius:8px; font-size:1rem; font-weight:600; cursor:pointer; font-family:var(--sans); pointer-events:all; transition: transform 0.15s; }
   .fail-btn:hover { transform: scale(1.05); }
+
+  #block-picker { display:none; position:fixed; inset:0; z-index:1000; align-items:center; justify-content:center; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); }
+  #block-picker.show { display:flex; animation: fadeInScale 0.5s ease; }
+  .picker-box { background: var(--surface); border:1px solid var(--border); border-radius:16px; padding:2rem; text-align:center; max-width:360px; }
+  .picker-title { font-size:1.3rem; font-weight:600; margin-bottom:0.5rem; color:var(--text); }
+  .picker-sub { color:var(--muted); font-size:0.85rem; margin-bottom:1.5rem; line-height:1.5; }
+  .picker-options { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; }
+  .picker-btn { padding:14px; border-radius:10px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:var(--mono); font-size:1.1rem; font-weight:600; cursor:pointer; transition: all 0.15s; }
+  .picker-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .picker-cancel { margin-top:1rem; background:none; border:none; color:var(--muted); font-size:0.82rem; cursor:pointer; text-decoration:underline; }
 </style>
 </head>
 <body>
@@ -364,7 +375,7 @@ const EXPLANATIONS = {
   149:"Chatter Stream agrega el feed de múltiples grupos, registros y personas en una sola vista centralizada."
 };
 
-let mode = '', questions = [], current = 0, selected = [], userAnswers = [], timerInterval = null, timeLeft = 0, blockStart = 0;
+let mode = '', questions = [], current = 0, selected = [], userAnswers = [], timerInterval = null, timeLeft = 0, blockStart = 0, reviewBlockSize = 10;
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
 
@@ -383,6 +394,13 @@ function startMode(m) {
     timeLeft = 105 * 60;
     startTimer();
     document.getElementById('timer').style.display = 'block';
+  } else if (mode === 'repaso') {
+    const pendingIds = getPendingReviewIds(getProgress());
+    questions = QUESTIONS.filter(q => pendingIds.includes(q.id));
+    document.getElementById('mode-badge').textContent = 'MODO REPASO';
+    document.getElementById('mode-badge').className = 'mode-badge badge-repaso';
+    document.getElementById('timer').style.display = 'none';
+    document.getElementById('btn-skip').style.display = 'none';
   } else {
     questions = [...QUESTIONS];
     document.getElementById('mode-badge').textContent = 'MODO ESTUDIO';
@@ -422,10 +440,11 @@ function renderQuestion() {
   document.getElementById('prog-info').innerHTML = `<span>${current + 1}</span> / ${questions.length}`;
   document.getElementById('q-number').textContent = `PREGUNTA ${current + 1}`;
 
-  if (mode === 'study') {
-    const block = Math.floor(current / 10) + 1;
-    const qInBlock = (current % 10) + 1;
-    document.getElementById('block-label').innerHTML = `Bloque <span style="color:var(--accent)">${block}</span> · ${qInBlock}/10`;
+  if (mode === 'study' || mode === 'repaso') {
+    const size = mode === 'repaso' ? reviewBlockSize : 10;
+    const block = Math.floor(current / size) + 1;
+    const qInBlock = (current % size) + 1;
+    document.getElementById('block-label').innerHTML = `Bloque <span style="color:var(--accent)">${block}</span> · ${qInBlock}/${size}`;
   }
 
   document.getElementById('q-text').textContent = q.question;
@@ -477,7 +496,7 @@ function checkAnswer() {
   const isCorrect = selected.length === correct.length && selected.every(s => correct.includes(s)) && correct.every(c => selected.includes(c));
   userAnswers[current] = { selected: [...selected], correct: isCorrect };
 
-  if (mode === 'study') {
+  if (mode === 'study' || mode === 'repaso') {
     updateProgress(q.id, isCorrect);
   }
 
@@ -493,7 +512,7 @@ function checkAnswer() {
     }
   });
 
-  if (mode === 'study') {
+  if (mode === 'study' || mode === 'repaso') {
     const fb = document.getElementById('feedback');
     fb.style.display = 'block';
     if (isCorrect) {
@@ -510,8 +529,9 @@ function checkAnswer() {
   document.getElementById('btn-next').style.display = 'inline-block';
   document.getElementById('btn-skip').style.display = 'none';
 
-  // En modo estudio, al completar bloque de 10 mostrar mini-result
-  if (mode === 'study' && (current + 1) % 10 === 0 && current + 1 < questions.length) {
+  // En modo estudio/repaso, al completar un bloque mostrar mini-result
+  const blockSizeForLabel = mode === 'repaso' ? reviewBlockSize : 10;
+  if ((mode === 'study' || mode === 'repaso') && (current + 1) % blockSizeForLabel === 0 && current + 1 < questions.length) {
     document.getElementById('btn-next').textContent = 'Siguiente bloque →';
   } else if (current + 1 >= questions.length) {
     document.getElementById('btn-next').textContent = mode === 'exam' ? 'Ver resultados' : 'Ver resultados del bloque';
@@ -666,6 +686,22 @@ function goMenu() {
   renderMenuCounts();
 }
 
+function openBlockPicker() {
+  const pending = getPendingReviewIds(getProgress());
+  if (pending.length === 0) return;
+  document.getElementById('block-picker').classList.add('show');
+}
+
+function closeBlockPicker() {
+  document.getElementById('block-picker').classList.remove('show');
+}
+
+function startRepaso(blockSize) {
+  closeBlockPicker();
+  reviewBlockSize = blockSize;
+  startMode('repaso');
+}
+
 function renderMenuCounts() {
   const progress = getProgress();
   const pendingCount = getPendingReviewIds(progress).length;
@@ -706,6 +742,20 @@ renderMenuCounts();
   <div class="fail-sub" id="fail-sub-text"></div>
   <div class="fail-tip" id="fail-tip-text"></div>
   <button class="fail-btn" onclick="closeFailMsg()">Ver qué he fallado →</button>
+</div>
+
+<div id="block-picker">
+  <div class="picker-box">
+    <div class="picker-title">Elige el tamaño de bloque</div>
+    <div class="picker-sub">Repasarás todas tus preguntas falladas, agrupadas en bloques de este tamaño.</div>
+    <div class="picker-options">
+      <button class="picker-btn" onclick="startRepaso(10)">10</button>
+      <button class="picker-btn" onclick="startRepaso(20)">20</button>
+      <button class="picker-btn" onclick="startRepaso(30)">30</button>
+      <button class="picker-btn" onclick="startRepaso(40)">40</button>
+    </div>
+    <button class="picker-cancel" onclick="closeBlockPicker()">Cancelar</button>
+  </div>
 </div>
 
 </body>
