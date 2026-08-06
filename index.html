@@ -441,7 +441,9 @@ function startMode(m) {
     document.getElementById('timer').style.display = 'none';
     document.getElementById('btn-skip').style.display = 'none';
   } else {
-    questions = shuffle(QUESTIONS);
+    const seenIds = getSeenIds();
+    const unseen = QUESTIONS.filter(q => !seenIds.includes(q.id));
+    questions = shuffle(unseen.length > 0 ? unseen : QUESTIONS);
     document.getElementById('mode-badge').textContent = 'MODO ESTUDIO';
     document.getElementById('mode-badge').className = 'mode-badge badge-study';
     document.getElementById('timer').style.display = 'none';
