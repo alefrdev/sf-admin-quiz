@@ -223,7 +223,7 @@
   <h1 class="title">Admin Exam<br><span>Quiz Engine</span></h1>
   <p class="subtitle">149 preguntas del banco oficial · dos modos de estudio</p>
   <div class="cards">
-    <div class="mode-card" onclick="startMode('study')">
+    <div class="mode-card" onclick="openCategoryPicker('study')">
       <div class="mode-tag tag-study">ESTUDIO</div>
       <div class="mode-icon">📖</div>
       <div class="mode-name">Modo Estudio</div>
@@ -266,6 +266,7 @@
 
   <div class="question-area" id="question-area">
     <div class="q-number" id="q-number"></div>
+    <div class="q-category-badge" id="q-category-badge"></div>
     <div class="q-text" id="q-text"></div>
     <div class="multi-hint" id="multi-hint" style="display:none"></div>
     <div class="options" id="options"></div>
@@ -475,8 +476,9 @@ function startMode(m) {
     document.getElementById('btn-skip').style.display = 'none';
   } else {
     const seenIds = getSeenIds();
-    const unseen = QUESTIONS.filter(q => !seenIds.includes(q.id));
-    questions = shuffle(unseen.length > 0 ? unseen : QUESTIONS);
+    const pool = categoryFilter === 'all' ? QUESTIONS : QUESTIONS.filter(q => q.category === categoryFilter);
+    const unseen = pool.filter(q => !seenIds.includes(q.id));
+    questions = shuffle(unseen.length > 0 ? unseen : pool);
     document.getElementById('mode-badge').textContent = 'MODO ESTUDIO';
     document.getElementById('mode-badge').className = 'mode-badge badge-study';
     document.getElementById('timer').style.display = 'none';
@@ -515,6 +517,7 @@ function renderQuestion() {
   document.getElementById('prog-fill').style.width = pct + '%';
   document.getElementById('prog-info').innerHTML = `<span>${current + 1}</span> / ${questions.length}`;
   document.getElementById('q-number').textContent = `PREGUNTA ${current + 1}`;
+  document.getElementById('q-category-badge').textContent = mode === 'study' ? (CATEGORY_LABELS[q.category] || '') : '';
 
   if (mode === 'study' || mode === 'repaso') {
     const size = Math.min(mode === 'repaso' ? reviewBlockSize : 10, questions.length);
