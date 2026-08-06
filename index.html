@@ -236,7 +236,7 @@
       <div class="mode-name">Modo Examen</div>
       <div class="mode-desc">60 preguntas aleatorias. 105 minutos. Nota mínima 68%. Sin respuestas hasta el final.</div>
     </div>
-    <div class="mode-card repaso-card" id="repaso-card" onclick="openBlockPicker()">
+    <div class="mode-card repaso-card" id="repaso-card" onclick="openCategoryPicker('pending')">
       <div class="mode-tag tag-repaso">REPASO</div>
       <div class="mode-icon">🔁</div>
       <div class="mode-name">Repasar Falladas</div>
@@ -469,7 +469,7 @@ function startMode(m) {
     const idsToUse = reviewSource === 'historial'
       ? getRevisionEntries(progress).map(e => e.id)
       : getPendingReviewIds(progress);
-    questions = QUESTIONS.filter(q => idsToUse.includes(q.id));
+    questions = QUESTIONS.filter(q => idsToUse.includes(q.id) && (categoryFilter === 'all' || q.category === categoryFilter));
     document.getElementById('mode-badge').textContent = reviewSource === 'historial' ? 'MODO REPASO (HISTORIAL)' : 'MODO REPASO';
     document.getElementById('mode-badge').className = 'mode-badge badge-repaso';
     document.getElementById('timer').style.display = 'none';
@@ -799,9 +799,16 @@ function goMenu() {
 function openBlockPicker(source) {
   source = source || 'pending';
   const progress = getProgress();
-  const count = source === 'historial'
-    ? getRevisionEntries(progress).length
-    : getPendingReviewIds(progress).length;
+  let ids = source === 'historial'
+    ? getRevisionEntries(progress).map(e => e.id)
+    : getPendingReviewIds(progress);
+  if (categoryFilter !== 'all') {
+    ids = ids.filter(id => {
+      const q = QUESTIONS.find(item => item.id === id);
+      return q && q.category === categoryFilter;
+    });
+  }
+  const count = ids.length;
   if (count === 0) return;
   reviewSource = source;
   if (count <= 10) {
