@@ -195,6 +195,13 @@
   .picker-btn { padding:14px; border-radius:10px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:var(--mono); font-size:1.1rem; font-weight:600; cursor:pointer; transition: all 0.15s; }
   .picker-btn:hover { border-color:var(--accent); color:var(--accent); }
   .picker-cancel { margin-top:1rem; background:none; border:none; color:var(--muted); font-size:0.82rem; cursor:pointer; text-decoration:underline; }
+  .picker-box-wide { max-width: 480px; }
+  .category-list { display:flex; flex-direction:column; gap:0.6rem; text-align:left; max-height: 50vh; overflow-y:auto; }
+  .category-btn { padding:12px 16px; border-radius:10px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:0.9rem; font-weight:500; cursor:pointer; transition: all 0.15s; text-align:left; display:flex; justify-content:space-between; align-items:center; }
+  .category-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .category-btn.disabled { opacity:0.4; cursor:default; pointer-events:none; }
+  .category-btn .cat-count { font-family:var(--mono); font-size:0.78rem; color:var(--muted); }
+  .q-category-badge { font-family:var(--mono); font-size:0.72rem; color:var(--muted); margin-top:2px; }
 
   #historial-page { display:none; max-width:780px; margin:0 auto; padding:2.5rem 1.5rem; }
   .fail-count-badge { font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(239,68,68,0.15); color: #fca5a5; margin-left: 8px; }
@@ -412,6 +419,28 @@ const EXPLANATIONS = {
   147:"'Allow Activities' en Object Manager habilita que el objeto personalizado pueda tener tareas y eventos relacionados.",
   148:"Case Escalation Rules envían casos sin respuesta a colas urgentes y notifican managers cuando supera el tiempo configurado.",
   149:"Chatter Stream agrega el feed de múltiples grupos, registros y personas en una sola vista centralizada."
+};
+
+const CATEGORIES = [
+  'Configuration and Setup',
+  'Object Manager and Lightning App Builder',
+  'Sales and Marketing Applications',
+  'Service and Support Applications',
+  'Productivity and Collaboration',
+  'Data and Analytics Management',
+  'Automation',
+  'Agentforce'
+];
+
+const CATEGORY_LABELS = {
+  'Configuration and Setup': 'Configuración y Setup',
+  'Object Manager and Lightning App Builder': 'Object Manager y Lightning App Builder',
+  'Sales and Marketing Applications': 'Ventas y Marketing',
+  'Service and Support Applications': 'Servicio y Soporte',
+  'Productivity and Collaboration': 'Productividad y Colaboración',
+  'Data and Analytics Management': 'Gestión de Datos y Analítica',
+  'Automation': 'Automatización',
+  'Agentforce': 'Agentforce'
 };
 
 let mode = '', questions = [], current = 0, selected = [], userAnswers = [], timerInterval = null, timeLeft = 0, blockStart = 0, reviewBlockSize = 10, reviewSource = 'pending';
