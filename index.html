@@ -41,6 +41,7 @@
   .mode-icon { font-size: 2.5rem; margin-bottom: 1rem; }
   .mode-name { font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem; }
   .mode-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+  #study-new-count { margin-top: 0.4rem; color: var(--accent); font-weight: 600; }
   .mode-tag { position: absolute; top: 1rem; right: 1rem; font-family: var(--mono); font-size: 10px; padding: 3px 8px; border-radius: 4px; }
   .tag-exam { background: rgba(124,58,237,0.2); color: #a78bfa; }
   .tag-study { background: rgba(0,212,255,0.15); color: var(--accent); }
@@ -220,6 +221,7 @@
       <div class="mode-icon">📖</div>
       <div class="mode-name">Modo Estudio</div>
       <div class="mode-desc">10 preguntas por bloque. Respuesta inmediata con explicación al contestar.</div>
+      <div class="mode-desc" id="study-new-count"></div>
     </div>
     <div class="mode-card exam-card" onclick="startMode('exam')">
       <div class="mode-tag tag-exam">EXAMEN</div>
@@ -465,6 +467,10 @@ function startTimer() {
 function renderQuestion() {
   const q = questions[current];
   selected = [];
+
+  if (mode === 'study') {
+    markSeen(q.id);
+  }
   document.getElementById('feedback').style.display = 'none';
   document.getElementById('btn-check').style.display = 'inline-block';
   document.getElementById('btn-check').disabled = true;
@@ -821,6 +827,13 @@ function renderMenuCounts() {
   }
 
   document.getElementById('historial-count').textContent = revisionCount;
+
+  const seenCount = getSeenIds().length;
+  const newCount = QUESTIONS.length - seenCount;
+  document.getElementById('study-new-count').textContent =
+    newCount === 0
+      ? `Ya has visto las ${QUESTIONS.length} preguntas al menos una vez.`
+      : `${newCount} nuevas de ${QUESTIONS.length} por ver.`;
 }
 
 renderMenuCounts();

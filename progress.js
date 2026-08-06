@@ -1,4 +1,5 @@
 const PROGRESS_KEY = 'sf_quiz_progress_v1';
+const SEEN_KEY = 'sf_quiz_seen_v1';
 
 function getProgress() {
   try {
@@ -45,6 +46,24 @@ function getRevisionEntries(progress) {
     .sort((a, b) => b.failCount - a.failCount);
 }
 
+function getSeenIds() {
+  try {
+    const raw = localStorage.getItem(SEEN_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function markSeen(questionId) {
+  const seen = getSeenIds();
+  if (!seen.includes(questionId)) {
+    seen.push(questionId);
+    localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+  }
+  return seen;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     getProgress,
@@ -52,6 +71,9 @@ if (typeof module !== 'undefined' && module.exports) {
     updateProgress,
     getPendingReviewIds,
     getRevisionEntries,
-    PROGRESS_KEY
+    getSeenIds,
+    markSeen,
+    PROGRESS_KEY,
+    SEEN_KEY
   };
 }

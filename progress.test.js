@@ -15,6 +15,8 @@ const {
   updateProgress,
   getPendingReviewIds,
   getRevisionEntries,
+  getSeenIds,
+  markSeen,
   PROGRESS_KEY
 } = require('./progress.js');
 
@@ -84,4 +86,26 @@ test('getRevisionEntries returns all failed ids sorted by failCount desc', () =>
     { id: 3, failCount: 3 },
     { id: 1, failCount: 1 }
   ]);
+});
+
+test('getSeenIds returns [] when nothing stored', () => {
+  assert.deepEqual(getSeenIds(), []);
+});
+
+test('markSeen adds a new id and getSeenIds reflects it', () => {
+  markSeen(7);
+  assert.deepEqual(getSeenIds(), [7]);
+});
+
+test('markSeen does not duplicate an id already seen', () => {
+  markSeen(7);
+  markSeen(7);
+  assert.deepEqual(getSeenIds(), [7]);
+});
+
+test('markSeen accumulates distinct ids across calls', () => {
+  markSeen(7);
+  markSeen(12);
+  markSeen(7);
+  assert.deepEqual(getSeenIds(), [7, 12]);
 });
