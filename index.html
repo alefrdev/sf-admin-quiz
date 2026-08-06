@@ -186,8 +186,8 @@
   .fail-btn { margin-top:0.5rem; padding: 12px 32px; background: var(--amber); color: #0a0e1a; border:none; border-radius:8px; font-size:1rem; font-weight:600; cursor:pointer; font-family:var(--sans); pointer-events:all; transition: transform 0.15s; }
   .fail-btn:hover { transform: scale(1.05); }
 
-  #block-picker { display:none; position:fixed; inset:0; z-index:1000; align-items:center; justify-content:center; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); }
-  #block-picker.show { display:flex; animation: fadeInScale 0.5s ease; }
+  #block-picker, #category-picker { display:none; position:fixed; inset:0; z-index:1000; align-items:center; justify-content:center; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); }
+  #block-picker.show, #category-picker.show { display:flex; animation: fadeInScale 0.5s ease; }
   .picker-box { background: var(--surface); border:1px solid var(--border); border-radius:16px; padding:2rem; text-align:center; max-width:360px; }
   .picker-title { font-size:1.3rem; font-weight:600; margin-bottom:0.5rem; color:var(--text); }
   .picker-sub { color:var(--muted); font-size:0.85rem; margin-bottom:1.5rem; line-height:1.5; }
@@ -443,7 +443,7 @@ const CATEGORY_LABELS = {
   'Agentforce': 'Agentforce'
 };
 
-let mode = '', questions = [], current = 0, selected = [], userAnswers = [], timerInterval = null, timeLeft = 0, blockStart = 0, reviewBlockSize = 10, reviewSource = 'pending';
+let mode = '', questions = [], current = 0, selected = [], userAnswers = [], timerInterval = null, timeLeft = 0, blockStart = 0, reviewBlockSize = 10, reviewSource = 'pending', categoryFilter = 'all';
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
 
@@ -812,6 +812,63 @@ function closeBlockPicker() {
   document.getElementById('block-picker').classList.remove('show');
 }
 
+let categoryPickerContext = 'study';
+
+function getCategoryCounts(context) {
+  const counts = {};
+  if (context === 'study') {
+    CATEGORIES.forEach(cat => { counts[cat] = QUESTIONS.filter(q => q.category === cat).length; });
+  } else {
+    const progress = getProgress();
+    const ids = context === 'historial'
+      ? getRevisionEntries(progress).map(e => e.id)
+      : getPendingReviewIds(progress);
+    CATEGORIES.forEach(cat => {
+      counts[cat] = QUESTIONS.filter(q => ids.includes(q.id) && q.category === cat).length;
+    });
+  }
+  return counts;
+}
+
+function openCategoryPicker(context) {
+  categoryPickerContext = context;
+  const counts = getCategoryCounts(context);
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const list = document.getElementById('category-list');
+  list.innerHTML = '';
+
+  const allBtn = document.createElement('button');
+  allBtn.className = 'category-btn';
+  allBtn.innerHTML = `<span>Todas</span><span class="cat-count">${total}</span>`;
+  allBtn.onclick = () => selectCategory('all');
+  list.appendChild(allBtn);
+
+  CATEGORIES.forEach(cat => {
+    const count = counts[cat];
+    const btn = document.createElement('button');
+    btn.className = 'category-btn' + (count === 0 ? ' disabled' : '');
+    btn.innerHTML = `<span>${CATEGORY_LABELS[cat]}</span><span class="cat-count">${count}</span>`;
+    if (count > 0) btn.onclick = () => selectCategory(cat);
+    list.appendChild(btn);
+  });
+
+  document.getElementById('category-picker').classList.add('show');
+}
+
+function closeCategoryPicker() {
+  document.getElementById('category-picker').classList.remove('show');
+}
+
+function selectCategory(category) {
+  categoryFilter = category;
+  closeCategoryPicker();
+  if (categoryPickerContext === 'study') {
+    startMode('study');
+  } else {
+    openBlockPicker(categoryPickerContext);
+  }
+}
+
 function startRepaso(blockSize) {
   closeBlockPicker();
   reviewBlockSize = blockSize;
@@ -937,6 +994,15 @@ renderMenuCounts();
       <button class="picker-btn" onclick="startRepaso(40)">40</button>
     </div>
     <button class="picker-cancel" onclick="closeBlockPicker()">Cancelar</button>
+  </div>
+</div>
+
+<div id="category-picker">
+  <div class="picker-box picker-box-wide">
+    <div class="picker-title" id="category-picker-title">Elige una categoría</div>
+    <div class="picker-sub" id="category-picker-sub">Filtra las preguntas por dominio del temario oficial.</div>
+    <div class="category-list" id="category-list"></div>
+    <button class="picker-cancel" onclick="closeCategoryPicker()">Cancelar</button>
   </div>
 </div>
 
