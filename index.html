@@ -264,6 +264,7 @@
     <div class="options" id="options"></div>
     <div class="feedback-box" id="feedback"></div>
     <div class="btn-row">
+      <button class="btn btn-ghost" id="btn-prev" onclick="goToPrevious()" style="display:none">← Anterior</button>
       <button class="btn btn-primary" id="btn-check" onclick="checkAnswer()" disabled>Confirmar</button>
       <button class="btn btn-primary" id="btn-next" onclick="nextQuestion()" style="display:none">Siguiente →</button>
       <button class="btn btn-ghost" id="btn-skip" onclick="skipQuestion()">Saltar</button>
@@ -466,16 +467,14 @@ function startTimer() {
 
 function renderQuestion() {
   const q = questions[current];
-  selected = [];
+  const existingAnswer = userAnswers[current];
+  selected = existingAnswer ? [...existingAnswer.selected] : [];
 
-  if (mode === 'study') {
+  if (mode === 'study' && !existingAnswer) {
     markSeen(q.id);
   }
   document.getElementById('feedback').style.display = 'none';
-  document.getElementById('btn-check').style.display = 'inline-block';
-  document.getElementById('btn-check').disabled = true;
-  document.getElementById('btn-next').style.display = 'none';
-  document.getElementById('btn-skip').style.display = mode === 'exam' ? 'inline-block' : 'none';
+  document.getElementById('btn-prev').style.display = current > 0 ? 'inline-block' : 'none';
 
   const pct = Math.round((current / questions.length) * 100);
   document.getElementById('prog-fill').style.width = pct + '%';
@@ -509,6 +508,57 @@ function renderQuestion() {
     div.onclick = () => selectOption(div, letter, q);
     opts.appendChild(div);
   });
+
+  if (existingAnswer) {
+    document.getElementById('btn-check').style.display = 'none';
+    document.getElementById('btn-skip').style.display = 'none';
+    document.getElementById('btn-next').style.display = 'inline-block';
+    document.getElementById('btn-next').textContent = 'Siguiente →';
+    if (!existingAnswer.skipped) {
+      applyAnsweredStyling(q, existingAnswer.selected, existingAnswer.correct);
+    } else {
+      document.querySelectorAll('.option').forEach(el => el.classList.add('disabled'));
+    }
+  } else {
+    document.getElementById('btn-check').style.display = 'inline-block';
+    document.getElementById('btn-check').disabled = true;
+    document.getElementById('btn-next').style.display = 'none';
+    document.getElementById('btn-skip').style.display = mode === 'exam' ? 'inline-block' : 'none';
+  }
+}
+
+function goToPrevious() {
+  if (current === 0) return;
+  current--;
+  renderQuestion();
+}
+
+function applyAnsweredStyling(q, selectedAnswers, isCorrect) {
+  const correct = q.answers;
+  document.querySelectorAll('.option').forEach(el => {
+    el.classList.add('disabled');
+    const letter = el.dataset.letter;
+    if (correct.includes(letter)) {
+      el.classList.add('correct');
+      el.querySelector('.opt-icon').textContent = '✓';
+    } else if (selectedAnswers.includes(letter) && !correct.includes(letter)) {
+      el.classList.add('incorrect');
+      el.querySelector('.opt-icon').textContent = '✗';
+    }
+  });
+
+  if (mode === 'study' || mode === 'repaso') {
+    const fb = document.getElementById('feedback');
+    fb.style.display = 'block';
+    if (isCorrect) {
+      fb.className = 'feedback-box correct-fb';
+      fb.innerHTML = `<strong>✓ Correcto</strong>${EXPLANATIONS[q.id] || 'Respuesta correcta.'}`;
+    } else {
+      const corrText = correct.map(l => `${l}. ${q.options[l]}`).join(' / ');
+      fb.className = 'feedback-box incorrect-fb';
+      fb.innerHTML = `<strong>✗ Incorrecto — Respuesta correcta: ${correct.join(', ')}</strong>${EXPLANATIONS[q.id] || ''}`;
+    }
+  }
 }
 
 function selectOption(el, letter, q) {
@@ -545,30 +595,7 @@ function checkAnswer() {
     }
   }
 
-  document.querySelectorAll('.option').forEach(el => {
-    el.classList.add('disabled');
-    const letter = el.dataset.letter;
-    if (correct.includes(letter)) {
-      el.classList.add('correct');
-      el.querySelector('.opt-icon').textContent = '✓';
-    } else if (selected.includes(letter) && !correct.includes(letter)) {
-      el.classList.add('incorrect');
-      el.querySelector('.opt-icon').textContent = '✗';
-    }
-  });
-
-  if (mode === 'study' || mode === 'repaso') {
-    const fb = document.getElementById('feedback');
-    fb.style.display = 'block';
-    if (isCorrect) {
-      fb.className = 'feedback-box correct-fb';
-      fb.innerHTML = `<strong>✓ Correcto</strong>${EXPLANATIONS[q.id] || 'Respuesta correcta.'}`;
-    } else {
-      const corrText = correct.map(l => `${l}. ${q.options[l]}`).join(' / ');
-      fb.className = 'feedback-box incorrect-fb';
-      fb.innerHTML = `<strong>✗ Incorrecto — Respuesta correcta: ${correct.join(', ')}</strong>${EXPLANATIONS[q.id] || ''}`;
-    }
-  }
+  applyAnsweredStyling(q, selected, isCorrect);
 
   document.getElementById('btn-check').style.display = 'none';
   document.getElementById('btn-next').style.display = 'inline-block';
