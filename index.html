@@ -495,7 +495,7 @@ function renderQuestion() {
 
   const opts = document.getElementById('options');
   opts.innerHTML = '';
-  Object.entries(q.options).forEach(([letter, text]) => {
+  shuffle(Object.entries(q.options)).forEach(([letter, text]) => {
     const div = document.createElement('div');
     div.className = 'option';
     div.dataset.letter = letter;
