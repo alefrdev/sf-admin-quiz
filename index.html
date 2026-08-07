@@ -202,9 +202,12 @@
   .category-btn.disabled { opacity:0.4; cursor:default; pointer-events:none; }
   .category-btn .cat-count { font-family:var(--mono); font-size:0.78rem; color:var(--muted); }
   .q-category-badge { font-family:var(--mono); font-size:0.72rem; color:var(--muted); margin-top:2px; }
+  .bookmark-btn { background:none; border:none; font-size:1.4rem; line-height:1; cursor:pointer; color:var(--muted); padding:0 0 0 1rem; }
+  .bookmark-btn.marked { color:var(--amber); }
 
   #historial-page { display:none; max-width:780px; margin:0 auto; padding:2.5rem 1.5rem; }
   #dashboard-page { display:none; max-width:780px; margin:0 auto; padding:2.5rem 1.5rem; }
+  #bookmarks-page { display:none; max-width:780px; margin:0 auto; padding:2.5rem 1.5rem; }
   .dash-section-title { font-size:0.95rem; font-weight:600; color:var(--text); margin: 2rem 0 1rem; }
   .dash-section-title:first-of-type { margin-top: 0; }
   .exam-history-row { display:flex; justify-content:space-between; align-items:center; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:0.9rem 1.1rem; margin-bottom:0.6rem; font-size:0.85rem; }
@@ -261,6 +264,7 @@
   </div>
   <div class="stats-bar" style="margin-top:0.75rem">
     <div id="historial-link" onclick="showHistorial()" style="cursor:pointer;">📋 Historial de falladas: <span id="historial-count">0</span></div>
+    <div id="bookmarks-link" onclick="showBookmarks()" style="cursor:pointer;">🔖 Marcadas: <span id="bookmarks-count">0</span></div>
     <div id="dashboard-link" onclick="showDashboard()" style="cursor:pointer;">📊 Progreso</div>
   </div>
 </div>
@@ -277,7 +281,10 @@
   <div class="progress-track"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
 
   <div class="question-area" id="question-area">
-    <div class="q-number" id="q-number"></div>
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div class="q-number" id="q-number"></div>
+      <button class="bookmark-btn" id="bookmark-btn" onclick="toggleCurrentBookmark()" title="Marcar como dudosa">☆</button>
+    </div>
     <div class="q-category-badge" id="q-category-badge"></div>
     <div class="q-text" id="q-text"></div>
     <div class="multi-hint" id="multi-hint" style="display:none"></div>
@@ -324,6 +331,21 @@
   <div id="historial-list"></div>
   <div class="btn-row" style="margin-top:2rem">
     <button class="btn btn-ghost" onclick="closeHistorial()">← Volver al menú</button>
+  </div>
+</div>
+
+<div id="bookmarks-page">
+  <div class="result-header">
+    <div class="review-title">PREGUNTAS MARCADAS</div>
+    <div class="result-sub" id="bookmarks-sub"></div>
+  </div>
+  <div class="btn-row" style="margin:1.5rem 0">
+    <button class="btn btn-primary" id="practice-bookmarks-btn" onclick="openCategoryPicker('bookmarks')">Practicar estas preguntas</button>
+    <button class="btn btn-ghost" onclick="closeBookmarks()">← Volver al menú</button>
+  </div>
+  <div id="bookmarks-list"></div>
+  <div class="btn-row" style="margin-top:2rem">
+    <button class="btn btn-ghost" onclick="closeBookmarks()">← Volver al menú</button>
   </div>
 </div>
 
@@ -485,6 +507,7 @@ function startMode(m) {
   document.getElementById('question-area').style.display = 'block';
   document.getElementById('historial-page').style.display = 'none';
   document.getElementById('dashboard-page').style.display = 'none';
+  document.getElementById('bookmarks-page').style.display = 'none';
 
   if (mode === 'exam') {
     questions = shuffle(QUESTIONS).slice(0, 60);
@@ -496,15 +519,20 @@ function startMode(m) {
     document.getElementById('timer').style.display = 'block';
   } else if (mode === 'repaso') {
     const progress = getProgress();
-    const idsToUse = reviewSource === 'historial'
-      ? getRevisionEntries(progress).map(e => e.id)
-      : getPendingReviewIds(progress).sort((a, b) => (progress[b].failCount || 0) - (progress[a].failCount || 0));
+    let idsToUse;
+    if (reviewSource === 'historial') {
+      idsToUse = getRevisionEntries(progress).map(e => e.id);
+    } else if (reviewSource === 'bookmarks') {
+      idsToUse = getBookmarks();
+    } else {
+      idsToUse = getPendingReviewIds(progress).sort((a, b) => (progress[b].failCount || 0) - (progress[a].failCount || 0));
+    }
     const filteredIds = idsToUse.filter(id => {
       const q = QUESTIONS.find(item => item.id === id);
       return q && (categoryFilter === 'all' || q.category === categoryFilter);
     });
     questions = filteredIds.map(id => QUESTIONS.find(q => q.id === id));
-    document.getElementById('mode-badge').textContent = reviewSource === 'historial' ? 'MODO REPASO (HISTORIAL)' : 'MODO REPASO';
+    document.getElementById('mode-badge').textContent = reviewSource === 'historial' ? 'MODO REPASO (HISTORIAL)' : reviewSource === 'bookmarks' ? 'MODO REPASO (MARCADAS)' : 'MODO REPASO';
     document.getElementById('mode-badge').className = 'mode-badge badge-repaso';
     document.getElementById('timer').style.display = 'none';
     document.getElementById('btn-skip').style.display = 'none';
@@ -546,6 +574,11 @@ function renderQuestion() {
   }
   document.getElementById('feedback').style.display = 'none';
   document.getElementById('btn-prev').style.display = current > 0 ? 'inline-block' : 'none';
+
+  const bookmarkBtn = document.getElementById('bookmark-btn');
+  const isBookmarked = getBookmarks().includes(q.id);
+  bookmarkBtn.textContent = isBookmarked ? '★' : '☆';
+  bookmarkBtn.classList.toggle('marked', isBookmarked);
 
   const pct = Math.round((current / questions.length) * 100);
   document.getElementById('prog-fill').style.width = pct + '%';
@@ -603,6 +636,15 @@ function goToPrevious() {
   if (current === 0) return;
   current--;
   renderQuestion();
+}
+
+function toggleCurrentBookmark() {
+  const q = questions[current];
+  toggleBookmark(q.id);
+  const isBookmarked = getBookmarks().includes(q.id);
+  const bookmarkBtn = document.getElementById('bookmark-btn');
+  bookmarkBtn.textContent = isBookmarked ? '★' : '☆';
+  bookmarkBtn.classList.toggle('marked', isBookmarked);
 }
 
 function applyAnsweredStyling(q, selectedAnswers, isCorrect) {
@@ -837,9 +879,14 @@ function goMenu() {
 function openBlockPicker(source) {
   source = source || 'pending';
   const progress = getProgress();
-  let ids = source === 'historial'
-    ? getRevisionEntries(progress).map(e => e.id)
-    : getPendingReviewIds(progress);
+  let ids;
+  if (source === 'historial') {
+    ids = getRevisionEntries(progress).map(e => e.id);
+  } else if (source === 'bookmarks') {
+    ids = getBookmarks();
+  } else {
+    ids = getPendingReviewIds(progress);
+  }
   if (categoryFilter !== 'all') {
     ids = ids.filter(id => {
       const q = QUESTIONS.find(item => item.id === id);
@@ -868,9 +915,14 @@ function getCategoryCounts(context) {
     CATEGORIES.forEach(cat => { counts[cat] = QUESTIONS.filter(q => q.category === cat).length; });
   } else {
     const progress = getProgress();
-    const ids = context === 'historial'
-      ? getRevisionEntries(progress).map(e => e.id)
-      : getPendingReviewIds(progress);
+    let ids;
+    if (context === 'historial') {
+      ids = getRevisionEntries(progress).map(e => e.id);
+    } else if (context === 'bookmarks') {
+      ids = getBookmarks();
+    } else {
+      ids = getPendingReviewIds(progress);
+    }
     CATEGORIES.forEach(cat => {
       counts[cat] = QUESTIONS.filter(q => ids.includes(q.id) && q.category === cat).length;
     });
@@ -982,6 +1034,47 @@ function closeHistorial() {
   renderMenuCounts();
 }
 
+function showBookmarks() {
+  const bookmarks = getBookmarks();
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('bookmarks-page').style.display = 'block';
+  document.getElementById('bookmarks-sub').textContent =
+    `${bookmarks.length} pregunta${bookmarks.length === 1 ? '' : 's'} marcada${bookmarks.length === 1 ? '' : 's'} como dudosa${bookmarks.length === 1 ? '' : 's'}`;
+  document.getElementById('practice-bookmarks-btn').style.display = bookmarks.length === 0 ? 'none' : 'inline-block';
+
+  const list = document.getElementById('bookmarks-list');
+  list.innerHTML = '';
+  if (bookmarks.length === 0) {
+    list.innerHTML = '<p style="color:var(--muted);text-align:center;">No has marcado ninguna pregunta todavía.</p>';
+    return;
+  }
+  bookmarks.forEach(id => {
+    const q = QUESTIONS.find(item => item.id === id);
+    if (!q) return;
+    const div = document.createElement('div');
+    div.className = 'review-item';
+    const correctText = q.answers.map(l => `${l}. ${q.options[l]}`).join(' / ');
+    div.innerHTML = `
+      <div class="review-q">[Q${q.id}] ${q.question}</div>
+      <div class="review-answers"><span class="rev-ans rev-correct-ans">✓ ${correctText}</span></div>
+      ${EXPLANATIONS[q.id] ? `<div style="margin-top:8px;font-size:0.78rem;color:var(--muted);line-height:1.5;">${EXPLANATIONS[q.id]}</div>` : ''}
+      <div style="margin-top:0.75rem;"><button class="btn btn-ghost" onclick="removeBookmarkFromList(${q.id})">Quitar marca</button></div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function removeBookmarkFromList(questionId) {
+  toggleBookmark(questionId);
+  showBookmarks();
+}
+
+function closeBookmarks() {
+  document.getElementById('bookmarks-page').style.display = 'none';
+  document.getElementById('menu').style.display = 'flex';
+  renderMenuCounts();
+}
+
 function showDashboard() {
   document.getElementById('menu').style.display = 'none';
   document.getElementById('dashboard-page').style.display = 'block';
@@ -1055,6 +1148,7 @@ function renderMenuCounts() {
   }
 
   document.getElementById('historial-count').textContent = revisionCount;
+  document.getElementById('bookmarks-count').textContent = getBookmarks().length;
 
   const seenCount = getSeenIds().length;
   const newCount = QUESTIONS.length - seenCount;
