@@ -21,6 +21,19 @@
     --mono: 'IBM Plex Mono', monospace;
     --sans: 'IBM Plex Sans', sans-serif;
   }
+  :root[data-theme="light"] {
+    --bg: #f4f6fb;
+    --surface: #ffffff;
+    --surface2: #eef1f8;
+    --border: #dbe1ee;
+    --accent: #0284c7;
+    --accent2: #6d28d9;
+    --green: #16a34a;
+    --red: #dc2626;
+    --amber: #d97706;
+    --text: #1e293b;
+    --muted: #64748b;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; padding-bottom: 32px; }
 
@@ -236,6 +249,7 @@
 <!-- MENU -->
 <div id="menu">
   <div id="auth-bar">
+    <button id="theme-toggle-btn" class="btn btn-ghost" onclick="toggleTheme()"></button>
     <button id="login-btn" class="btn btn-ghost" onclick="signIn()">Iniciar sesión con Google</button>
     <div id="user-info">
       <img id="user-photo" src="" alt="">
@@ -1251,6 +1265,21 @@ function renderMenuCounts() {
       : `${newCount} nuevas de ${QUESTIONS.length} por ver.`;
 }
 
+function initTheme() {
+  const saved = localStorage.getItem('sf_quiz_theme_v1') || 'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+  document.getElementById('theme-toggle-btn').textContent = saved === 'dark' ? '☀️ Claro' : '🌙 Oscuro';
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('sf_quiz_theme_v1', next);
+  document.getElementById('theme-toggle-btn').textContent = next === 'dark' ? '☀️ Claro' : '🌙 Oscuro';
+}
+
+initTheme();
 renderMenuCounts();
 </script>
 
