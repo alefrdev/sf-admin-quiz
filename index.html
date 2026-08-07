@@ -468,8 +468,12 @@ function startMode(m) {
     const progress = getProgress();
     const idsToUse = reviewSource === 'historial'
       ? getRevisionEntries(progress).map(e => e.id)
-      : getPendingReviewIds(progress);
-    questions = QUESTIONS.filter(q => idsToUse.includes(q.id) && (categoryFilter === 'all' || q.category === categoryFilter));
+      : getPendingReviewIds(progress).sort((a, b) => (progress[b].failCount || 0) - (progress[a].failCount || 0));
+    const filteredIds = idsToUse.filter(id => {
+      const q = QUESTIONS.find(item => item.id === id);
+      return q && (categoryFilter === 'all' || q.category === categoryFilter);
+    });
+    questions = filteredIds.map(id => QUESTIONS.find(q => q.id === id));
     document.getElementById('mode-badge').textContent = reviewSource === 'historial' ? 'MODO REPASO (HISTORIAL)' : 'MODO REPASO';
     document.getElementById('mode-badge').className = 'mode-badge badge-repaso';
     document.getElementById('timer').style.display = 'none';
