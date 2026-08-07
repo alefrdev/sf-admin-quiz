@@ -277,6 +277,11 @@
     <div id="bookmarks-link" onclick="showBookmarks()" style="cursor:pointer;">🔖 Marcadas: <span id="bookmarks-count">0</span></div>
     <div id="dashboard-link" onclick="showDashboard()" style="cursor:pointer;">📊 Progreso</div>
   </div>
+  <div class="stats-bar" style="margin-top:0.75rem">
+    <div onclick="exportProgress()" style="cursor:pointer;">⬇️ Exportar progreso</div>
+    <div onclick="triggerImportProgress()" style="cursor:pointer;">⬆️ Importar progreso</div>
+    <input type="file" id="import-file-input" accept="application/json" style="display:none" onchange="importProgressFile(event)">
+  </div>
 </div>
 
 <!-- QUIZ -->
@@ -1113,6 +1118,54 @@ function closeBookmarks() {
   document.getElementById('bookmarks-page').style.display = 'none';
   document.getElementById('menu').style.display = 'flex';
   renderMenuCounts();
+}
+
+function exportProgress() {
+  const data = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    progress: getProgress(),
+    seen: getSeenIds(),
+    bookmarks: getBookmarks(),
+    examHistory: getExamHistory()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `sf-quiz-progreso-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function triggerImportProgress() {
+  document.getElementById('import-file-input').click();
+}
+
+function importProgressFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!data || typeof data !== 'object' || typeof data.progress !== 'object') {
+        alert('El archivo no tiene un formato válido.');
+        return;
+      }
+      if (!confirm('Esto reemplazará tu progreso actual (falladas, vistas, marcadas e historial de exámenes) con el del archivo. ¿Continuar?')) return;
+      saveProgress(data.progress || {});
+      localStorage.setItem(SEEN_KEY, JSON.stringify(data.seen || []));
+      localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(data.bookmarks || []));
+      localStorage.setItem(EXAM_HISTORY_KEY, JSON.stringify(data.examHistory || []));
+      renderMenuCounts();
+      alert('Progreso importado correctamente.');
+    } catch (e) {
+      alert('No se pudo leer el archivo. ¿Es un JSON exportado desde esta app?');
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
 }
 
 function showDashboard() {
