@@ -1,5 +1,7 @@
 const PROGRESS_KEY = 'sf_quiz_progress_v1';
 const SEEN_KEY = 'sf_quiz_seen_v1';
+const EXAM_HISTORY_KEY = 'sf_quiz_exam_history_v1';
+const BOOKMARKS_KEY = 'sf_quiz_bookmarks_v1';
 
 function getProgress() {
   try {
@@ -64,6 +66,43 @@ function markSeen(questionId) {
   return seen;
 }
 
+function getExamHistory() {
+  try {
+    const raw = localStorage.getItem(EXAM_HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function addExamResult(result) {
+  const history = getExamHistory();
+  history.push(result);
+  localStorage.setItem(EXAM_HISTORY_KEY, JSON.stringify(history));
+  return history;
+}
+
+function getBookmarks() {
+  try {
+    const raw = localStorage.getItem(BOOKMARKS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function toggleBookmark(questionId) {
+  const bookmarks = getBookmarks();
+  const idx = bookmarks.indexOf(questionId);
+  if (idx === -1) {
+    bookmarks.push(questionId);
+  } else {
+    bookmarks.splice(idx, 1);
+  }
+  localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
+  return bookmarks;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     getProgress,
@@ -73,7 +112,13 @@ if (typeof module !== 'undefined' && module.exports) {
     getRevisionEntries,
     getSeenIds,
     markSeen,
+    getExamHistory,
+    addExamResult,
+    getBookmarks,
+    toggleBookmark,
     PROGRESS_KEY,
-    SEEN_KEY
+    SEEN_KEY,
+    EXAM_HISTORY_KEY,
+    BOOKMARKS_KEY
   };
 }

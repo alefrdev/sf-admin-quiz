@@ -17,6 +17,10 @@ const {
   getRevisionEntries,
   getSeenIds,
   markSeen,
+  getExamHistory,
+  addExamResult,
+  getBookmarks,
+  toggleBookmark,
   PROGRESS_KEY
 } = require('./progress.js');
 
@@ -108,4 +112,40 @@ test('markSeen accumulates distinct ids across calls', () => {
   markSeen(12);
   markSeen(7);
   assert.deepEqual(getSeenIds(), [7, 12]);
+});
+
+test('getExamHistory returns [] when nothing stored', () => {
+  assert.deepEqual(getExamHistory(), []);
+});
+
+test('addExamResult appends and getExamHistory reflects it', () => {
+  addExamResult({ pct: 70, correct: 42, total: 60, date: '2026-08-07' });
+  assert.deepEqual(getExamHistory(), [{ pct: 70, correct: 42, total: 60, date: '2026-08-07' }]);
+});
+
+test('addExamResult accumulates multiple results in order', () => {
+  addExamResult({ pct: 50, correct: 30, total: 60, date: '2026-08-01' });
+  addExamResult({ pct: 80, correct: 48, total: 60, date: '2026-08-07' });
+  assert.deepEqual(getExamHistory().map(r => r.pct), [50, 80]);
+});
+
+test('getBookmarks returns [] when nothing stored', () => {
+  assert.deepEqual(getBookmarks(), []);
+});
+
+test('toggleBookmark adds an id not yet bookmarked', () => {
+  toggleBookmark(7);
+  assert.deepEqual(getBookmarks(), [7]);
+});
+
+test('toggleBookmark removes an id already bookmarked', () => {
+  toggleBookmark(7);
+  toggleBookmark(7);
+  assert.deepEqual(getBookmarks(), []);
+});
+
+test('toggleBookmark handles multiple distinct ids', () => {
+  toggleBookmark(7);
+  toggleBookmark(12);
+  assert.deepEqual(getBookmarks(), [7, 12]);
 });
