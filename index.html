@@ -186,8 +186,8 @@
   .fail-btn { margin-top:0.5rem; padding: 12px 32px; background: var(--amber); color: #0a0e1a; border:none; border-radius:8px; font-size:1rem; font-weight:600; cursor:pointer; font-family:var(--sans); pointer-events:all; transition: transform 0.15s; }
   .fail-btn:hover { transform: scale(1.05); }
 
-  #block-picker, #category-picker { display:none; position:fixed; inset:0; z-index:1000; align-items:center; justify-content:center; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); }
-  #block-picker.show, #category-picker.show { display:flex; animation: fadeInScale 0.5s ease; }
+  #block-picker, #category-picker, #nav-picker { display:none; position:fixed; inset:0; z-index:1000; align-items:center; justify-content:center; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); }
+  #block-picker.show, #category-picker.show, #nav-picker.show { display:flex; animation: fadeInScale 0.5s ease; }
   .picker-box { background: var(--surface); border:1px solid var(--border); border-radius:16px; padding:2rem; text-align:center; max-width:360px; }
   .picker-title { font-size:1.3rem; font-weight:600; margin-bottom:0.5rem; color:var(--text); }
   .picker-sub { color:var(--muted); font-size:0.85rem; margin-bottom:1.5rem; line-height:1.5; }
@@ -204,6 +204,16 @@
   .q-category-badge { font-family:var(--mono); font-size:0.72rem; color:var(--muted); margin-top:2px; }
   .bookmark-btn { background:none; border:none; font-size:1.4rem; line-height:1; cursor:pointer; color:var(--muted); padding:0 0 0 1rem; }
   .bookmark-btn.marked { color:var(--amber); }
+  .nav-grid { display:grid; grid-template-columns:repeat(8, 1fr); gap:0.5rem; max-height:50vh; overflow-y:auto; }
+  .nav-cell { aspect-ratio:1; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:var(--mono); font-size:0.8rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .nav-cell:hover { border-color:var(--accent); }
+  .nav-cell.current { border-color:var(--accent); border-width:2px; }
+  .nav-cell.correct { background: rgba(34,197,94,0.18); color: var(--green); }
+  .nav-cell.incorrect { background: rgba(239,68,68,0.18); color: var(--red); }
+  .nav-cell.skipped { background: rgba(245,158,11,0.18); color: var(--amber); }
+  .nav-legend { display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; margin-top:1rem; font-size:0.75rem; color:var(--muted); }
+  .nav-legend span { display:inline-flex; align-items:center; gap:0.35rem; }
+  .nav-legend i { width:10px; height:10px; border-radius:3px; display:inline-block; }
 
   #historial-page { display:none; max-width:780px; margin:0 auto; padding:2.5rem 1.5rem; }
   #dashboard-page { display:none; max-width:780px; margin:0 auto; padding:2.5rem 1.5rem; }
@@ -276,6 +286,7 @@
     <div class="mode-badge" id="mode-badge"></div>
     <div class="block-label" id="block-label" style="font-family:var(--mono);font-size:0.78rem;color:var(--muted);"></div>
     <div class="progress-info" id="prog-info"></div>
+    <button class="back-btn" onclick="openNavigator()">☰ Preguntas</button>
     <div class="timer" id="timer" style="display:none"></div>
   </div>
   <div class="progress-track"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
@@ -635,6 +646,35 @@ function renderQuestion() {
 function goToPrevious() {
   if (current === 0) return;
   current--;
+  renderQuestion();
+}
+
+function openNavigator() {
+  const grid = document.getElementById('nav-grid');
+  grid.innerHTML = '';
+  questions.forEach((q, i) => {
+    const ua = userAnswers[i];
+    const cell = document.createElement('button');
+    let cls = 'nav-cell';
+    if (i === current) cls += ' current';
+    if (ua && ua.skipped) cls += ' skipped';
+    else if (ua && ua.correct) cls += ' correct';
+    else if (ua && !ua.correct) cls += ' incorrect';
+    cell.className = cls;
+    cell.textContent = i + 1;
+    cell.onclick = () => jumpToQuestion(i);
+    grid.appendChild(cell);
+  });
+  document.getElementById('nav-picker').classList.add('show');
+}
+
+function closeNavigator() {
+  document.getElementById('nav-picker').classList.remove('show');
+}
+
+function jumpToQuestion(index) {
+  current = index;
+  closeNavigator();
   renderQuestion();
 }
 
@@ -1202,6 +1242,20 @@ renderMenuCounts();
     <div class="picker-sub" id="category-picker-sub">Filtra las preguntas por dominio del temario oficial.</div>
     <div class="category-list" id="category-list"></div>
     <button class="picker-cancel" onclick="closeCategoryPicker()">Cancelar</button>
+  </div>
+</div>
+
+<div id="nav-picker">
+  <div class="picker-box picker-box-wide">
+    <div class="picker-title">Ir a una pregunta</div>
+    <div class="nav-grid" id="nav-grid"></div>
+    <div class="nav-legend">
+      <span><i style="background:rgba(34,197,94,0.5)"></i>Correcta</span>
+      <span><i style="background:rgba(239,68,68,0.5)"></i>Incorrecta</span>
+      <span><i style="background:rgba(245,158,11,0.5)"></i>Saltada</span>
+      <span><i style="background:var(--surface2)"></i>Sin responder</span>
+    </div>
+    <button class="picker-cancel" onclick="closeNavigator()">Cerrar</button>
   </div>
 </div>
 
