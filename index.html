@@ -204,6 +204,17 @@
   .q-category-badge { font-family:var(--mono); font-size:0.72rem; color:var(--muted); margin-top:2px; }
 
   #historial-page { display:none; max-width:780px; margin:0 auto; padding:2.5rem 1.5rem; }
+  #dashboard-page { display:none; max-width:780px; margin:0 auto; padding:2.5rem 1.5rem; }
+  .dash-section-title { font-size:0.95rem; font-weight:600; color:var(--text); margin: 2rem 0 1rem; }
+  .dash-section-title:first-of-type { margin-top: 0; }
+  .exam-history-row { display:flex; justify-content:space-between; align-items:center; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:0.9rem 1.1rem; margin-bottom:0.6rem; font-size:0.85rem; }
+  .exam-history-row .eh-score { font-family:var(--mono); font-weight:700; }
+  .exam-history-row .eh-score.pass { color:var(--green); }
+  .exam-history-row .eh-score.fail { color:var(--red); }
+  .cat-bar-row { margin-bottom:0.9rem; }
+  .cat-bar-label { display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:0.35rem; }
+  .cat-bar-track { background:var(--surface2); border-radius:6px; height:8px; overflow:hidden; }
+  .cat-bar-fill { background:var(--red); height:100%; border-radius:6px; }
   .fail-count-badge { font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(239,68,68,0.15); color: #fca5a5; margin-left: 8px; }
 </style>
 </head>
@@ -250,6 +261,7 @@
   </div>
   <div class="stats-bar" style="margin-top:0.75rem">
     <div id="historial-link" onclick="showHistorial()" style="cursor:pointer;">📋 Historial de falladas: <span id="historial-count">0</span></div>
+    <div id="dashboard-link" onclick="showDashboard()" style="cursor:pointer;">📊 Progreso</div>
   </div>
 </div>
 
@@ -312,6 +324,23 @@
   <div id="historial-list"></div>
   <div class="btn-row" style="margin-top:2rem">
     <button class="btn btn-ghost" onclick="closeHistorial()">← Volver al menú</button>
+  </div>
+</div>
+
+<div id="dashboard-page">
+  <div class="result-header">
+    <div class="review-title">TU PROGRESO</div>
+    <div class="result-sub" id="dashboard-sub"></div>
+  </div>
+  <div class="btn-row" style="margin:1.5rem 0">
+    <button class="btn btn-ghost" onclick="closeDashboard()">← Volver al menú</button>
+  </div>
+  <div class="dash-section-title">Puntos débiles por categoría (pendientes de repasar)</div>
+  <div id="dashboard-categories"></div>
+  <div class="dash-section-title">Historial de exámenes</div>
+  <div id="dashboard-exam-history"></div>
+  <div class="btn-row" style="margin-top:2rem">
+    <button class="btn btn-ghost" onclick="closeDashboard()">← Volver al menú</button>
   </div>
 </div>
 
@@ -455,6 +484,7 @@ function startMode(m) {
   document.getElementById('results').style.display = 'none';
   document.getElementById('question-area').style.display = 'block';
   document.getElementById('historial-page').style.display = 'none';
+  document.getElementById('dashboard-page').style.display = 'none';
 
   if (mode === 'exam') {
     questions = shuffle(QUESTIONS).slice(0, 60);
@@ -680,6 +710,10 @@ function showResults() {
   const total = questions.length;
   const pct = Math.round((correct / total) * 100);
   const pass = pct >= 68;
+
+  if (mode === 'exam') {
+    addExamResult({ pct, correct, total, date: new Date().toISOString() });
+  }
 
   document.getElementById('res-score').textContent = pct + '%';
   document.getElementById('res-score').className = 'result-score ' + (pass ? 'pass' : 'fail');
@@ -944,6 +978,63 @@ function showHistorial() {
 
 function closeHistorial() {
   document.getElementById('historial-page').style.display = 'none';
+  document.getElementById('menu').style.display = 'flex';
+  renderMenuCounts();
+}
+
+function showDashboard() {
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('dashboard-page').style.display = 'block';
+
+  const progress = getProgress();
+  const pendingIds = getPendingReviewIds(progress);
+  const catCounts = CATEGORIES.map(cat => {
+    const count = QUESTIONS.filter(q => q.category === cat && pendingIds.includes(q.id)).length;
+    return { cat, count };
+  }).filter(c => c.count > 0).sort((a, b) => b.count - a.count);
+
+  document.getElementById('dashboard-sub').textContent =
+    catCounts.length === 0 ? 'Sin preguntas pendientes de repasar por categoría.' : `${catCounts.length} categoría${catCounts.length === 1 ? '' : 's'} con preguntas pendientes.`;
+
+  const catList = document.getElementById('dashboard-categories');
+  catList.innerHTML = '';
+  if (catCounts.length === 0) {
+    catList.innerHTML = '<p style="color:var(--muted);text-align:center;">Nada pendiente por ahora. ¡Bien!</p>';
+  } else {
+    const max = catCounts[0].count;
+    catCounts.forEach(({ cat, count }) => {
+      const row = document.createElement('div');
+      row.className = 'cat-bar-row';
+      row.innerHTML = `
+        <div class="cat-bar-label"><span>${CATEGORY_LABELS[cat]}</span><span>${count}</span></div>
+        <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${Math.round((count / max) * 100)}%"></div></div>
+      `;
+      catList.appendChild(row);
+    });
+  }
+
+  const examHistory = getExamHistory().slice().reverse();
+  const examList = document.getElementById('dashboard-exam-history');
+  examList.innerHTML = '';
+  if (examHistory.length === 0) {
+    examList.innerHTML = '<p style="color:var(--muted);text-align:center;">Todavía no has completado ningún examen.</p>';
+  } else {
+    examHistory.forEach(r => {
+      const pass = r.pct >= 68;
+      const dateStr = new Date(r.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+      const row = document.createElement('div');
+      row.className = 'exam-history-row';
+      row.innerHTML = `
+        <span>${dateStr} · ${r.correct}/${r.total} correctas</span>
+        <span class="eh-score ${pass ? 'pass' : 'fail'}">${r.pct}% ${pass ? '✓' : '✗'}</span>
+      `;
+      examList.appendChild(row);
+    });
+  }
+}
+
+function closeDashboard() {
+  document.getElementById('dashboard-page').style.display = 'none';
   document.getElementById('menu').style.display = 'flex';
   renderMenuCounts();
 }
